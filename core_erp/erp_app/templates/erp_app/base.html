@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ERP Tizimi{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Qo'shimcha global stillar kerak bo'lsa */
+        body {
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <nav class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-2xl font-bold">Kompaniya ERP</a>
+            <div>
+                <a href="{% url 'home' %}" class="px-3 py-2 hover:bg-blue-700 rounded">Bosh Sahifa</a>
+                <a href="{% url 'mahsulotlar_list' %}" class="px-3 py-2 hover:bg-blue-700 rounded">Mahsulotlar</a>
+                <a href="{% url 'sotuv_buyurtmalari_list' %}" class="px-3 py-2 hover:bg-blue-700 rounded">Sotuv Buyurtmalari</a>
+                <a href="/admin/" target="_blank" class="px-3 py-2 hover:bg-blue-700 rounded">Admin Panel</a>
+                </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="bg-gray-800 text-white text-center p-4 mt-8">
+        <p>&copy; {% now "Y" %} Kompaniyamiz. Barcha huquqlar himoyalangan.</p>
+    </footer>
+</body>
+</html>

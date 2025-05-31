@@ -1,0 +1,157 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib60/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+# Обычно Django лойиҳалари учун керак эмас, лекин қўшиб қўйиш мумкин
+# *.manifest
+# *.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media/ # Foydalanuvchi yuklagan media fayllar (agar alohida saqlansa)
+/static_collected/ # `collectstatic` tomonidan yig'ilgan statik fayllar (agar har safar generatsiya qilinsa)
+# Agar `staticfiles` papkasini `collectstatic` uchun ishlatayotgan bo'lsangiz, uni ham qo'shing:
+# /staticfiles/
+
+# IPython Notebook
+.ipynb_checkpoints
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# Django Sentry
+.sentryclirc
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+
+# Scrapy
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# IDE Integration - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE Integration - PyCharm
+.idea/
+*.iws
+*.iml
+
+# IDE Integration - Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Environments
+.env
+.env.*
+!.env.example # .env.example faylini kuzatish uchun
+
+# Sass cache
+.sass-cache/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json # Agar paketlar `requirements.txt` orqali boshqarilsa
+yarn.lock # Agar paketlar `requirements.txt` orqali boshqarilsa
+
+# Secrets - O'zingizning maxfiy fayllaringiz uchun
+secrets.json
+*.key
+credentials.*
+
+# Log files
+logs/
+*.log.[0-9]*

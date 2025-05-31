@@ -1,0 +1,55 @@
+{% extends "erp_app/base.html" %}
+
+{% block title %}{{ page_title }} - ERP Tizimi{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">{{ page_title }}</h1>
+        <a href="/admin/erp_app/sotuvbuyurtmasi/add/" target="_blank" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Yangi Buyurtma Qo'shish
+        </a>
+    </div>
+
+    {% if buyurtmalar %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                <tr>
+                    <th class="py-3 px-6 text-left">ID</th>
+                    <th class="py-3 px-6 text-left">Mijoz</th>
+                    <th class="py-3 px-6 text-left">Buyurtma Sanasi</th>
+                    <th class="py-3 px-6 text-right">Umumiy Summa ($)</th>
+                    <th class="py-3 px-6 text-left">Status</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-700 text-sm">
+                {% for buyurtma in buyurtmalar %}
+                <tr class="border-b border-gray-200 hover:bg-gray-100">
+                    <td class="py-3 px-6 text-left">#{{ buyurtma.id }}</td>
+                    <td class="py-3 px-6 text-left">{{ buyurtma.mijoz.kompaniya_nomi }}</td>
+                    <td class="py-3 px-6 text-left">{{ buyurtma.buyurtma_sanasi|date:"d-m-Y H:i" }}</td>
+                    <td class="py-3 px-6 text-right">{{ buyurtma.umumiy_summa|floatformat:2 }}</td>
+                    <td class="py-3 px-6 text-left">
+                        <span class="px-2 py-1 font-semibold leading-tight
+                            {% if buyurtma.status == 'Yangi' %} text-blue-700 bg-blue-100
+                            {% elif buyurtma.status == 'Tasdiqlangan' %} text-yellow-700 bg-yellow-100
+                            {% elif buyurtma.status == 'Jo\'natilgan' %} text-purple-700 bg-purple-100
+                            {% elif buyurtma.status == 'Yetkazilgan' %} text-green-700 bg-green-100
+                            {% elif buyurtma.status == 'Bekor qilingan' %} text-red-700 bg-red-100
+                            {% else %} text-gray-700 bg-gray-100
+                            {% endif %}
+                            rounded-full">
+                            {{ buyurtma.get_status_display }}
+                        </span>
+                    </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-gray-600">Hozircha sotuv buyurtmalari mavjud emas.</p>
+    {% endif %}
+</div>
+{% endblock %}
