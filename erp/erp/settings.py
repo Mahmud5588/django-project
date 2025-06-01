@@ -25,7 +25,10 @@ SECRET_KEY = 'django-insecure---jr18%vqy_bt=1^v1%_iu&t%a3#@c6h&n!z90703h)j5rhn8#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['13.60.212.19']
+ALLOWED_HOSTS = ['13.60.212.19',
+                'localhost', # Gunicorn  uchun
+                 '127.0.0.1', 
+                ]
 
 
 # Application definition
@@ -120,8 +123,17 @@ LOGIN_URL = '/login/'  # URL to redirect to for login
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
 
-STATIC_URL = 'static/'
+# Statik fayllarni yig‘ish joyi (production uchun)
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Statik fayllar qayerdan yig‘iladi (development/payvand qilishda kerak)
+STATICFILES_DIRS = [
+    BASE_DIR / 'app' / 'static', 
+]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
