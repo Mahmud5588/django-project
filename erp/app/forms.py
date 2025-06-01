@@ -24,10 +24,10 @@ class UserRegistrationForm(UserCreationForm):
         self.fields['password1'].widget.attrs.update({'placeholder': 'Parol kiriting'})
         self.fields['password2'].widget.attrs.update({'placeholder': 'Parolni takrorlang'})
 
+
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        # Remove 'in_stock', you might want to add 'stock' if it's directly editable
         fields = ['name', 'description', 'price', 'category', 'image', 'stock', 'featured']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Mahsulot nomini kiriting'}),
@@ -35,9 +35,8 @@ class ProductForm(forms.ModelForm):
             'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01', 'placeholder': '0.00'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'image': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
-            'stock': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}), # Example for stock
+            'stock': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'featured': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            # Remove the 'in_stock' widget definition if you remove the field
         }
 
 
@@ -99,6 +98,7 @@ class UserForm(forms.ModelForm):
                 raise forms.ValidationError("Parol kamida 8 ta belgidan iborat bo'lishi kerak!")
 
         return cleaned_data
+
 
 class CategoryForm(forms.ModelForm):
     class Meta:
