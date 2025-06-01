@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
-from .models import Category, Product, Order, OrderItem, Cart, CartItem
+from .model_backup import Category, Product, Order, OrderItem, Cart, CartItem
 from .forms import UserRegistrationForm, ProductForm, UserForm, CategoryForm
 from django.contrib.auth import login, authenticate # logout (if you have a logout view)
 from django.contrib.auth.forms import AuthenticationForm
