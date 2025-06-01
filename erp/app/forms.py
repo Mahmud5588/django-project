@@ -14,67 +14,14 @@ class UserRegistrationForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['username'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Username kiriting'
-        })
-        self.fields['email'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Email kiriting'
-        })
-        self.fields['first_name'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Ismingizni kiriting'
-        })
-        self.fields['last_name'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Familiyangizni kiriting'
-        })
-        self.fields['password1'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Parol kiriting'
-        })
-        self.fields['password2'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Parolni takrorlang'
-        })
-
-
-    class Meta:
-        model = Product
-        fields = ['name', 'description', 'price', 'category', 'image', 'in_stock']
-        widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Mahsulot nomini kiriting'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Mahsulot tavsifini kiriting'
-            }),
-            'price': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'step': '0.01',
-                'placeholder': '0.00'
-            }),
-            'category': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'image': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
-            }),
-            'in_stock': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            })
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['category'].queryset = Category.objects.all()
-        self.fields['category'].empty_label = "Kategoriyani tanlang"
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({'class': 'form-control'})
+        self.fields['username'].widget.attrs.update({'placeholder': 'Username kiriting'})
+        self.fields['email'].widget.attrs.update({'placeholder': 'Email kiriting'})
+        self.fields['first_name'].widget.attrs.update({'placeholder': 'Ismingizni kiriting'})
+        self.fields['last_name'].widget.attrs.update({'placeholder': 'Familiyangizni kiriting'})
+        self.fields['password1'].widget.attrs.update({'placeholder': 'Parol kiriting'})
+        self.fields['password2'].widget.attrs.update({'placeholder': 'Parolni takrorlang'})
 
 class ProductForm(forms.ModelForm):
     class Meta:
