@@ -1,20 +1,20 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
-{% block title %}Register - ERP System{% endblock %}
+{% block title %}Register User - ERP System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h3 class="text-center">Create Account</h3>
+                <h3 class="text-center">Create User Account</h3>
             </div>
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                    <button type="submit" class="btn btn-primary w-100">Create user</button>
                 </form>
                 <hr>
                 <div class="text-center">
