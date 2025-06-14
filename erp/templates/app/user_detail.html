@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ user.username }} - User Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if user.userprofile.avatar %}
+                <img src="{{ user.userprofile.avatar.url }}" alt="{{ user.username }}" class="rounded-circle mb-3" style="width: 120px; height: 120px;">
+                {% else %}
+                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto mb-3" style="width: 120px; height: 120px; font-size: 48px;">
+                    {{ user.username|first|upper }}
+                </div>
+                {% endif %}
+                <h4>{{ user.get_full_name|default:user.username }}</h4>
+                <p class="text-muted">@{{ user.username }}</p>
+                <span class="badge bg-{% if user.is_active %}success{% else %}danger{% endif %} mb-3">
+                    {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Contact Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ user.email|default:"-" }}</p>
+                <p><strong>Phone:</strong> {{ user.userprofile.phone|default:"-" }}</p>
+                <p><strong>Address:</strong> {{ user.userprofile.address|default:"-" }}</p>
+                <p><strong>Joined:</strong> {{ user.date_joined|date:"F d, Y" }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Order History</h5>
+            </div>
+            <div class="card-body">
+                {% if user_orders %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Total</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in user_orders %}
+                            <tr>
+                                <td><a href="{% url 'order-detail' order.pk %}">#{{ order.id }}</a></td>
+                                <td>{{ order.order_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="badge bg-{% if order.status == 'delivered' %}success{% elif order.status == 'pending' %}warning{% else %}primary{% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>${{ order.total_amount }}</td>
+                                <td>
+                                    <a href="{% url 'order-detail' order.pk %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-shopping-cart fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No orders found for this user.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ category.name }} - Category Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ category.name }}</h4>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    {% if category.description %}
+                        {{ category.description }}
+                    {% else %}
+                        <em class="text-muted">No description available.</em>
+                    {% endif %}
+                </p>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3 class="text-primary">{{ product_count }}</h3>
+                        <p class="text-muted mb-0">Products</p>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-success">
+                            {% if products %}
+                                ${% widthratio products|length 1 products.0.price %}
+                            {% else %}
+                                $0
+                            {% endif %}
+                        </h3>
+                        <p class="text-muted mb-0">Avg Price</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <p><strong>Created:</strong> {{ category.created_at|date:"F d, Y" }}</p>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'category-update' category.pk %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit Category
+                    </a>
+                    <a href="{% url 'category-delete' category.pk %}" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete Category
+                    </a>
+                    <a href="{% url 'category-list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Categories
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Products in this Category</h5>
+                <a href="{% url 'product-create' %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Add Product
+                </a>
+            </div>
+            <div class="card-body">
+                {% if products %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Name</th>
+                                <th>SKU</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td>
+                                    {% if product.image %}
+                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-thumbnail" style="width: 40px; height: 40px;">
+                                    {% else %}
+                                    <div class="bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-image text-muted"></i>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'product-detail' product.pk %}">{{ product.name }}</a>
+                                </td>
+                                <td><code>{{ product.sku }}</code></td>
+                                <td>${{ product.price }}</td>
+                                <td>
+                                    <span class="badge bg-{% if product.stock_quantity < 10 %}danger{% elif product.stock_quantity < 50 %}warning{% else %}success{% endif %}">
+                                        {{ product.stock_quantity }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'product-detail' product.pk %}" class="btn btn-outline-info">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'product-update' product.pk %}" class="btn btn-outline-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h5>No products in this category</h5>
+                    <p class="text-muted">Add products to this category to see them here.</p>
+                    <a href="{% url 'product-create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add First Product
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

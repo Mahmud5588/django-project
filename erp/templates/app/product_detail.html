@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} - Product Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded mb-3">
+                {% else %}
+                <div class="bg-light d-flex align-items-center justify-content-center rounded mb-3" style="height: 300px;">
+                    <i class="fas fa-image fa-4x text-muted"></i>
+                </div>
+                {% endif %}
+                
+                <h2>{{ product.name }}</h2>
+                <p class="text-muted">{{ product.description }}</p>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <strong>Category:</strong><br>
+                        <span class="badge bg-info">{{ product.category.name }}</span>
+                    </div>
+                    <div class="col-6">
+                        <strong>SKU:</strong><br>
+                        <code>{{ product.sku }}</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Product Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <h4 class="text-success">${{ product.price }}</h4>
+                        <small class="text-muted">Price</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="{% if product.stock_quantity < 10 %}text-danger{% elif product.stock_quantity < 50 %}text-warning{% else %}text-success{% endif %}">
+                            {{ product.stock_quantity }}
+                        </h4>
+                        <small class="text-muted">In Stock</small>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <p><strong>Created:</strong> {{ product.created_at|date:"F d, Y" }}</p>
+                <p><strong>Last Updated:</strong> {{ product.updated_at|date:"F d, Y" }}</p>
+                
+                <div class="d-flex gap-2 mt-4">
+                    <a href="{% url 'product-update' product.pk %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{% url 'product-delete' product.pk %}" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                    <a href="{% url 'product-list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% if product.stock_quantity < 10 %}
+        <div class="alert alert-warning mt-3">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Low Stock Alert!</strong> This product is running low on inventory.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

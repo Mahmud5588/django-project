@@ -1,542 +1,314 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.models import User
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.core.paginator import Paginator
-from django.db.models import Q
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
 from django.http import JsonResponse
-from .model_backup import Category, Product, Order, OrderItem, Cart, CartItem
-from .forms import UserRegistrationForm, ProductForm, UserForm, CategoryForm
-from django.contrib.auth import login, authenticate # logout (if you have a logout view)
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib import messages
+from django.db.models import Sum, Count, Q, Avg
+from django.contrib.auth.models import User
+from .models import Product, Order, OrderItem, Category, UserProfile
+from .forms import UserRegisterForm, ProductForm, OrderForm, CategoryForm
+from datetime import datetime, timedelta
+from django.utils import timezone
+import json
 
-# Helper function to check if user is admin
-def is_admin(user):
-    return user.is_staff
-
-# Home view
-def home(request):
-    categories = Category.objects.all()[:6]
-    featured_products = Product.objects.filter(in_stock=True)[:8]
-    
-    context = {
-        'categories': categories,
-        'featured_products': featured_products,
-    }
-    return render(request, 'home.html', context)
-
-# Product views
-def product_list(request):
-    products = Product.objects.filter(in_stock=True)
-    categories = Category.objects.all()
-    
-    # Search functionality
-    query = request.GET.get('q')
-    if query:
-        products = products.filter(
-            Q(name__icontains=query) | 
-            Q(description__icontains=query)
-        )
-    
-    # Category filter
-    category_id = request.GET.get('category')
-    if category_id:
-        products = products.filter(category_id=category_id)
-    
-    # Pagination
-    paginator = Paginator(products, 12)
-    page_number = request.GET.get('page')
-    products = paginator.get_page(page_number)
-    
-    context = {
-        'products': products,
-        'categories': categories,
-        'query': query,
-        'selected_category': category_id,
-    }
-    return render(request, 'product_list.html', context)
-
-def product_detail(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    related_products = Product.objects.filter(
-        category=product.category, 
-        in_stock=True
-    ).exclude(id=product_id)[:4]
-    
-    context = {
-        'product': product,
-        'related_products': related_products,
-    }
-    return render(request, 'product_detail.html', context)
-
-# Authentication views
-def user_login(request):
+def register(request):
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST) # Pass request and POST data
-        if form.is_valid():
-            user = form.get_user() # Get the authenticated user from the form
-            if user is not None:
-                login(request, user)
-                messages.success(request, 'Muvaffaqiyatli kirdingiz!')
-                
-                # Redirect to 'next' URL if it exists, otherwise to 'home'
-                next_url = request.POST.get('next') or request.GET.get('next')
-                if next_url:
-                    return redirect(next_url)
-                return redirect('home') # Make sure 'home' is a valid URL name
-        else:
-            # Form is invalid (e.g., wrong credentials, user inactive)
-            # Django's AuthenticationForm will add appropriate errors to form.non_field_errors
-            # You can add a generic message if you want, but the form itself will have details.
-            messages.error(request, "Username yoki parol noto'g'ri yoki boshqa xatolik yuz berdi.")
-    else:
-        form = AuthenticationForm() # For a GET request, show an empty form
-        # You can also pass initial data to the form if needed for GET
-        # form = AuthenticationForm(initial={'username': 'some_default_user'})
-
-    return render(request, 'registration/login.html', {'form': form})
-
-
-def user_register(request):
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
+        form = UserRegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
+            UserProfile.objects.create(user=user)
             username = form.cleaned_data.get('username')
-            messages.success(request, f'{username} uchun hisob yaratildi!')
-            return redirect('login')
+            messages.success(request, f'Account created for {username}!')
+            login(request, user)
+            return redirect('dashboard')
     else:
-        form = UserRegistrationForm()
-    return render(request, 'registration/register.html', {'form': form})
+        form = UserRegisterForm()
+    return render(request, 'app/register.html', {'form': form})
 
-def user_logout(request):
-    logout(request)
-    messages.success(request, 'Muvaffaqiyatli chiqdingiz!')
-    return redirect('home')
-
-# Cart views
 @login_required
-def cart_view(request):
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    cart_items = CartItem.objects.filter(cart=cart)
+def dashboard(request):
+    # Get statistics
+    total_products = Product.objects.count()
+    total_orders = Order.objects.count()
+    total_users = User.objects.count()
+    total_categories = Category.objects.count()
+    total_revenue = Order.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     
-    total = sum(item.product.price * item.quantity for item in cart_items)
+    # Recent orders
+    recent_orders = Order.objects.select_related('customer').order_by('-order_date')[:5]
+    
+    # Low stock products
+    low_stock_products = Product.objects.filter(stock_quantity__lt=10)[:5]
+    
+    # Popular categories with product count
+    popular_categories = Category.objects.annotate(
+        product_count=Count('product')
+    ).order_by('-product_count')[:5]
     
     context = {
-        'cart_items': cart_items,
-        'total': total,
-    }
-    return render(request, 'cart.html', context)
-
-@login_required
-def add_to_cart(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    cart_item, created = CartItem.objects.get_or_create(
-        cart=cart, 
-        product=product,
-        defaults={'quantity': 1}
-    )
-    
-    if not created:
-        cart_item.quantity += 1
-        cart_item.save()
-    
-    messages.success(request, f'{product.name} savatchaga qo\'shildi!')
-    return redirect('product_detail', product_id=product_id)
-
-@login_required
-def remove_from_cart(request, item_id):
-    cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
-    product_name = cart_item.product.name
-    cart_item.delete()
-    messages.success(request, f'{product_name} savatchadan o\'chirildi!')
-    return redirect('cart_view')
-
-@login_required
-def update_cart(request, item_id):
-    if request.method == 'POST':
-        cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
-        quantity = int(request.POST.get('quantity', 1))
-        
-        if quantity > 0:
-            cart_item.quantity = quantity
-            cart_item.save()
-        else:
-            cart_item.delete()
-        
-        return redirect('cart_view')
-
-# Order views
-@login_required
-def checkout(request):
-    cart = get_object_or_404(Cart, user=request.user)
-    cart_items = CartItem.objects.filter(cart=cart)
-    
-    if not cart_items:
-        messages.error(request, 'Savatchangiz bo\'sh!')
-        return redirect('cart_view')
-    
-    if request.method == 'POST':
-        shipping_address = request.POST.get('shipping_address')
-        
-        # Create order
-        total_amount = sum(item.product.price * item.quantity for item in cart_items)
-        order = Order.objects.create(
-            user=request.user,
-            total_amount=total_amount,
-            shipping_address=shipping_address
-        )
-        
-        # Create order items
-        for cart_item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                product=cart_item.product,
-                quantity=cart_item.quantity,
-                price=cart_item.product.price
-            )
-        
-        # Clear cart
-        cart_items.delete()
-        
-        messages.success(request, 'Buyurtmangiz muvaffaqiyatli berildi!')
-        return redirect('order_detail', order_id=order.id)
-    
-    total = sum(item.product.price * item.quantity for item in cart_items)
-    
-    context = {
-        'cart_items': cart_items,
-        'total': total,
-    }
-    return render(request, 'checkout.html', context)
-
-@login_required
-def order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id, user=request.user)
-    context = {'order': order}
-    return render(request, 'order_detail.html', context)
-
-@login_required
-def my_orders(request):
-    orders = Order.objects.filter(user=request.user).order_by('-created_at')
-    
-    # Pagination
-    paginator = Paginator(orders, 10)
-    page_number = request.GET.get('page')
-    orders = paginator.get_page(page_number)
-    
-    context = {'orders': orders}
-    return render(request, 'my_orders.html', context)
-
-# Admin views
-@user_passes_test(is_admin)
-def admin_dashboard(request):
-    users_count = User.objects.count()
-    products_count = Product.objects.count()
-    orders_count = Order.objects.count()
-    categories_count = Category.objects.count()
-    
-    recent_orders = Order.objects.order_by('-created_at')[:5]
-    recent_users = User.objects.order_by('-date_joined')[:5]
-    recent_products = Product.objects.order_by('-id')[:5]
-    
-    context = {
-        'users_count': users_count,
-        'products_count': products_count,
-        'orders_count': orders_count,
-        'categories_count': categories_count,
+        'total_products': total_products,
+        'total_orders': total_orders,
+        'total_users': total_users,
+        'total_categories': total_categories,
+        'total_revenue': total_revenue,
         'recent_orders': recent_orders,
-        'recent_users': recent_users,
-        'recent_products': recent_products,
+        'low_stock_products': low_stock_products,
+        'popular_categories': popular_categories,
     }
-    return render(request, 'admin/dashboard.html', context)
+    return render(request, 'app/dashboard.html', context)
 
-# Admin Users Management
-@user_passes_test(is_admin)
-def admin_users(request):
-    users = User.objects.all()
+@login_required
+def user_list(request):
+    users = User.objects.select_related('userprofile').order_by('-date_joined')
+    return render(request, 'app/user_list.html', {'users': users})
+
+@login_required
+def user_detail(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    user_orders = Order.objects.filter(customer=user).order_by('-order_date')
+    return render(request, 'app/user_detail.html', {'user': user, 'user_orders': user_orders})
+
+# Product Views
+class ProductListView(LoginRequiredMixin, ListView):
+    model = Product
+    template_name = 'app/product_list.html'
+    context_object_name = 'products'
+    paginate_by = 10
     
-    # Search functionality
-    query = request.GET.get('q')
-    if query:
-        users = users.filter(
-            Q(username__icontains=query) | 
-            Q(email__icontains=query) |
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query)
+    def get_queryset(self):
+        return Product.objects.select_related('category').order_by('-created_at')
+
+class ProductDetailView(LoginRequiredMixin, DetailView):
+    model = Product
+    template_name = 'app/product_detail.html'
+    
+    def get_object(self):
+        return get_object_or_404(Product.objects.select_related('category'), pk=self.kwargs['pk'])
+
+class ProductCreateView(LoginRequiredMixin, CreateView):
+    model = Product
+    form_class = ProductForm
+    template_name = 'app/product_form.html'
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Product created successfully!')
+        return super().form_valid(form)
+
+class ProductUpdateView(LoginRequiredMixin, UpdateView):
+    model = Product
+    form_class = ProductForm
+    template_name = 'app/product_form.html'
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Product updated successfully!')
+        return super().form_valid(form)
+
+class ProductDeleteView(LoginRequiredMixin, DeleteView):
+    model = Product
+    template_name = 'app/product_confirm_delete.html'
+    success_url = reverse_lazy('product-list')
+    
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, 'Product deleted successfully!')
+        return super().delete(request, *args, **kwargs)
+
+# Order Views
+class OrderListView(LoginRequiredMixin, ListView):
+    model = Order
+    template_name = 'app/order_list.html'
+    context_object_name = 'orders'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        return Order.objects.select_related('customer').order_by('-order_date')
+
+class OrderDetailView(LoginRequiredMixin, DetailView):
+    model = Order
+    template_name = 'app/order_detail.html'
+    
+    def get_object(self):
+        return get_object_or_404(
+            Order.objects.select_related('customer').prefetch_related('items__product'), 
+            pk=self.kwargs['pk']
         )
-    
-    # Filter by staff status
-    is_staff = request.GET.get('is_staff')
-    if is_staff == 'true':
-        users = users.filter(is_staff=True)
-    elif is_staff == 'false':
-        users = users.filter(is_staff=False)
-    
-    # Filter by active status
-    is_active = request.GET.get('is_active')
-    if is_active == 'true':
-        users = users.filter(is_active=True)
-    elif is_active == 'false':
-        users = users.filter(is_active=False)
-    
-    users = users.order_by('-date_joined')
-    
-    # Pagination
-    paginator = Paginator(users, 20)
-    page_number = request.GET.get('page')
-    users = paginator.get_page(page_number)
-    
-    context = {'users': users}
-    return render(request, 'admin/users/list.html', context)
 
-@user_passes_test(is_admin)
-def admin_user_add(request):
-    if request.method == 'POST':
-        form = UserForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            password = form.cleaned_data.get('password1')
-            if password:
-                user.set_password(password)
-            user.save()
-            messages.success(request, 'Foydalanuvchi muvaffaqiyatli qo\'shildi!')
-            return redirect('admin_users')
-    else:
-        form = UserForm()
+class OrderCreateView(LoginRequiredMixin, CreateView):
+    model = Order
+    form_class = OrderForm
+    template_name = 'app/order_form.html'
     
-    context = {'form': form}
-    return render(request, 'admin/users/add.html', context)
+    def form_valid(self, form):
+        messages.success(self.request, 'Order created successfully!')
+        return super().form_valid(form)
 
-@user_passes_test(is_admin)
-def admin_user_edit(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+class OrderUpdateView(LoginRequiredMixin, UpdateView):
+    model = Order
+    form_class = OrderForm
+    template_name = 'app/order_form.html'
     
-    if request.method == 'POST':
-        form = UserForm(request.POST, instance=user)
-        if form.is_valid():
-            user = form.save(commit=False)
-            password = form.cleaned_data.get('password1')
-            if password:
-                user.set_password(password)
-            user.save()
-            messages.success(request, 'Foydalanuvchi ma\'lumotlari yangilandi!')
-            return redirect('admin_users')
-    else:
-        form = UserForm(instance=user)
-    
-    context = {'form': form, 'user': user}
-    return render(request, 'admin/users/edit.html', context)
+    def form_valid(self, form):
+        messages.success(self.request, 'Order updated successfully!')
+        return super().form_valid(form)
 
-@user_passes_test(is_admin)
-def admin_user_delete(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+# Category Views
+class CategoryListView(LoginRequiredMixin, ListView):
+    model = Category
+    template_name = 'app/category_list.html'
+    context_object_name = 'categories'
+    paginate_by = 12
     
-    if request.method == 'POST':
-        username = user.username
-        user.delete()
-        messages.success(request, f'{username} foydalanuvchisi o\'chirildi!')
-        return redirect('admin_users')
-    
-    context = {'user': user}
-    return render(request, 'admin/users/delete.html', context)
+    def get_queryset(self):
+        return Category.objects.annotate(
+            product_count=Count('product')
+        ).order_by('-created_at')
 
-# Admin Products Management
-@user_passes_test(is_admin)
-def admin_products(request):
-    products = Product.objects.all()
-    categories = Category.objects.all()
+class CategoryDetailView(LoginRequiredMixin, DetailView):
+    model = Category
+    template_name = 'app/category_detail.html'
     
-    # Search functionality
-    query = request.GET.get('q')
-    if query:
-        products = products.filter(
-            Q(name__icontains=query) | 
-            Q(description__icontains=query)
-        )
-    
-    # Filter by category
-    category_id = request.GET.get('category')
-    if category_id:
-        products = products.filter(category_id=category_id)
-    
-    # Filter by stock status
-    in_stock = request.GET.get('in_stock')
-    if in_stock == 'true':
-        products = products.filter(in_stock=True)
-    elif in_stock == 'false':
-        products = products.filter(in_stock=False)
-    
-    products = products.order_by('-id')
-    
-    # Pagination
-    paginator = Paginator(products, 20)
-    page_number = request.GET.get('page')
-    products = paginator.get_page(page_number)
-    
-    context = {
-        'products': products,
-        'categories': categories,
-    }
-    return render(request, 'admin/products/list.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['products'] = self.object.product_set.select_related('category').order_by('-created_at')
+        context['product_count'] = context['products'].count()
+        return context
 
-@user_passes_test(is_admin)
-def admin_product_add(request):
-    categories = Category.objects.all()
+class CategoryCreateView(LoginRequiredMixin, CreateView):
+    model = Category
+    form_class = CategoryForm
+    template_name = 'app/category_form.html'
     
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Mahsulot muvaffaqiyatli qo\'shildi!')
-            return redirect('admin_products')
-    else:
-        form = ProductForm()
-    
-    context = {
-        'form': form,
-        'categories': categories,
-    }
-    return render(request, 'admin/products/add.html', context)
+    def form_valid(self, form):
+        messages.success(self.request, 'Category created successfully!')
+        return super().form_valid(form)
 
-@user_passes_test(is_admin)
-def admin_product_edit(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    categories = Category.objects.all()
+class CategoryUpdateView(LoginRequiredMixin, UpdateView):
+    model = Category
+    form_class = CategoryForm
+    template_name = 'app/category_form.html'
     
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, instance=product)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Mahsulot ma\'lumotlari yangilandi!')
-            return redirect('admin_products')
-    else:
-        form = ProductForm(instance=product)
-    
-    context = {
-        'form': form,
-        'product': product,
-        'categories': categories,
-    }
-    return render(request, 'admin/products/edit.html', context)
+    def form_valid(self, form):
+        messages.success(self.request, 'Category updated successfully!')
+        return super().form_valid(form)
 
-@user_passes_test(is_admin)
-def admin_product_delete(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
+class CategoryDeleteView(LoginRequiredMixin, DeleteView):
+    model = Category
+    template_name = 'app/category_confirm_delete.html'
+    success_url = reverse_lazy('category-list')
     
-    if request.method == 'POST':
-        product_name = product.name
-        product.delete()
-        messages.success(request, f'{product_name} mahsuloti o\'chirildi!')
-        return redirect('admin_products')
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['product_count'] = self.object.product_set.count()
+        return context
     
-    context = {'product': product}
-    return render(request, 'admin/products/delete.html', context)
+    def delete(self, request, *args, **kwargs):
+        if self.get_object().product_set.count() > 0:
+            messages.error(request, 'Cannot delete category that contains products!')
+            return redirect('category-detail', pk=self.get_object().pk)
+        messages.success(request, 'Category deleted successfully!')
+        return super().delete(request, *args, **kwargs)
 
-# Admin Categories Management
-@user_passes_test(is_admin)
-def admin_categories(request):
-    categories = Category.objects.all().order_by('name')
-    
-    # Search functionality
-    query = request.GET.get('q')
-    if query:
-        categories = categories.filter(name__icontains=query)
-    
-    # Pagination
-    paginator = Paginator(categories, 20)
-    page_number = request.GET.get('page')
-    categories = paginator.get_page(page_number)
-    
-    context = {'categories': categories}
-    return render(request, 'admin/categories/list.html', context)
+@login_required
+def statistics(request):
+    return render(request, 'app/statistics.html')
 
-@user_passes_test(is_admin)
-def admin_category_add(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Kategoriya muvaffaqiyatli qo\'shildi!')
-            return redirect('admin_categories')
-    else:
-        form = CategoryForm()
-    
-    context = {'form': form}
-    return render(request, 'admin/categories/add.html', context)
-
-@user_passes_test(is_admin)
-def admin_category_edit(request, category_id):
-    category = get_object_or_404(Category, id=category_id)
-    
-    if request.method == 'POST':
-        form = CategoryForm(request.POST, instance=category)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Kategoriya ma\'lumotlari yangilandi!')
-            return redirect('admin_categories')
-    else:
-        form = CategoryForm(instance=category)
-    
-    context = {'form': form, 'category': category}
-    return render(request, 'admin/categories/edit.html', context)
-
-@user_passes_test(is_admin)
-def admin_category_delete(request, category_id):
-    category = get_object_or_404(Category, id=category_id)
-    
-    if request.method == 'POST':
-        category_name = category.name
-        category.delete()
-        messages.success(request, f'{category_name} kategoriyasi o\'chirildi!')
-        return redirect('admin_categories')
-    
-    context = {'category': category}
-    return render(request, 'admin/categories/delete.html', context)
-
-# Admin Orders Management
-@user_passes_test(is_admin)
-def admin_orders(request):
-    orders = Order.objects.all()
-    
-    # Search functionality
-    query = request.GET.get('q')
-    if query:
-        orders = orders.filter(
-            Q(user__username__icontains=query) |
-            Q(user__email__icontains=query) |
-            Q(id__icontains=query)
-        )
-    
-    # Filter by status
-    status = request.GET.get('status')
-    if status:
-        orders = orders.filter(status=status)
-    
-    orders = orders.order_by('-created_at')
-    
-    # Pagination
-    paginator = Paginator(orders, 20)
-    page_number = request.GET.get('page')
-    orders = paginator.get_page(page_number)
-    
-    context = {'orders': orders}
-    return render(request, 'admin/orders/list.html', context)
-
-@user_passes_test(is_admin)
-def admin_order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    
-    if request.method == 'POST':
-        new_status = request.POST.get('status')
-        if new_status in dict(Order.STATUS_CHOICES):
-            order.status = new_status
-            order.save()
-            messages.success(request, 'Buyurtma holati yangilandi!')
-            return redirect('admin_order_detail', order_id=order_id)
-    
-    context = {'order': order}
-    return render(request, 'admin/orders/detail.html', context)
+@login_required
+def chart_data(request):
+    try:
+        # Monthly sales data for the last 12 months
+        monthly_sales = []
+        current_date = timezone.now()
+        
+        for i in range(12):
+            # Calculate the start of the month
+            if current_date.month - i <= 0:
+                month = current_date.month - i + 12
+                year = current_date.year - 1
+            else:
+                month = current_date.month - i
+                year = current_date.year
+            
+            month_start = datetime(year, month, 1)
+            
+            # Calculate the end of the month
+            if month == 12:
+                month_end = datetime(year + 1, 1, 1)
+            else:
+                month_end = datetime(year, month + 1, 1)
+            
+            # Get sales for this month
+            sales = Order.objects.filter(
+                order_date__gte=month_start,
+                order_date__lt=month_end,
+                status__in=['delivered', 'shipped', 'processing']  # Only count meaningful orders
+            ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+            
+            monthly_sales.append({
+                'month': month_start.strftime('%B %Y'),
+                'sales': float(sales)
+            })
+        
+        # Reverse to show chronological order
+        monthly_sales.reverse()
+        
+        # Product categories data
+        categories = Category.objects.annotate(
+            product_count=Count('product'),
+            total_stock=Sum('product__stock_quantity'),
+            avg_price=Avg('product__price')
+        ).values('name', 'product_count', 'total_stock', 'avg_price')
+        
+        # Convert Decimal to float for JSON serialization
+        categories_list = []
+        for cat in categories:
+            categories_list.append({
+                'name': cat['name'],
+                'product_count': cat['product_count'] or 0,
+                'total_stock': cat['total_stock'] or 0,
+                'avg_price': float(cat['avg_price'] or 0)
+            })
+        
+        # Order status data
+        order_status = Order.objects.values('status').annotate(
+            count=Count('status')
+        ).order_by('status')
+        
+        # Top selling products
+        top_products = Product.objects.annotate(
+            total_sold=Sum('orderitem__quantity')
+        ).filter(total_sold__isnull=False).order_by('-total_sold')[:5]
+        
+        top_products_data = []
+        for product in top_products:
+            top_products_data.append({
+                'name': product.name,
+                'total_sold': product.total_sold or 0,
+                'revenue': float((product.total_sold or 0) * product.price)
+            })
+        
+        # Calculate additional statistics
+        total_revenue = sum(item['sales'] for item in monthly_sales)
+        total_orders = Order.objects.count()
+        avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
+        
+        data = {
+            'monthly_sales': monthly_sales,
+            'categories': categories_list,
+            'order_status': list(order_status),
+            'top_products': top_products_data,
+            'summary': {
+                'total_revenue': total_revenue,
+                'avg_order_value': avg_order_value,
+                'total_orders': total_orders,
+                'total_products': Product.objects.count(),
+                'total_categories': Category.objects.count(),
+                'low_stock_count': Product.objects.filter(stock_quantity__lt=10).count()
+            }
+        }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

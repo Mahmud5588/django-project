@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+
+{% block title %}Statistics - ERP System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Statistics & Analytics</h1>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="totalRevenue">$0</h4>
+                        <p class="mb-0">Total Revenue</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="totalOrders">0</h4>
+                        <p class="mb-0">Total Orders</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-shopping-cart fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="avgOrderValue">$0</h4>
+                        <p class="mb-0">Avg Order Value</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="lowStockCount">0</h4>
+                        <p class="mb-0">Low Stock Items</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Monthly Sales Chart -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Monthly Sales Trend</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Status Chart -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Order Status Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Product Categories Chart -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Products by Category</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Products Chart -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Selling Products</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="topProductsChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading indicator -->
+<div id="loadingIndicator" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading statistics...</p>
+</div>
+
+<!-- Error message -->
+<div id="errorMessage" class="alert alert-danger d-none">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Error loading statistics!</strong> Please try refreshing the page.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    // Show loading indicator
+    loadingIndicator.style.display = 'block';
+    
+    // Fetch chart data
+    fetch('{% url "chart-data" %}')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide loading indicator
+            loadingIndicator.style.display = 'none';
+            
+            // Update summary cards
+            if (data.summary) {
+                document.getElementById('totalRevenue').textContent = '$' + data.summary.total_revenue.toFixed(2);
+                document.getElementById('totalOrders').textContent = data.summary.total_orders;
+                document.getElementById('avgOrderValue').textContent = '$' + data.summary.avg_order_value.toFixed(2);
+                document.getElementById('lowStockCount').textContent = data.summary.low_stock_count;
+            }
+            
+            // Monthly Sales Chart
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: data.monthly_sales.map(item => item.month),
+                    datasets: [{
+                        label: 'Sales ($)',
+                        data: data.monthly_sales.map(item => item.sales),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Order Status Chart
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            const statusColors = {
+                'pending': '#ffc107',
+                'processing': '#17a2b8',
+                'shipped': '#007bff',
+                'delivered': '#28a745',
+                'cancelled': '#dc3545'
+            };
+            
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.order_status.map(item => item.status.charAt(0).toUpperCase() + item.status.slice(1)),
+                    datasets: [{
+                        data: data.order_status.map(item => item.count),
+                        backgroundColor: data.order_status.map(item => statusColors[item.status] || '#6c757d')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Product Categories Chart
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(categoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.categories.map(item => item.name),
+                    datasets: [{
+                        label: 'Products',
+                        data: data.categories.map(item => item.product_count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Top Products Chart
+            if (data.top_products && data.top_products.length > 0) {
+                const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+                new Chart(topProductsCtx, {
+                    type: 'horizontalBar',
+                    data: {
+                        labels: data.top_products.map(item => item.name),
+                        datasets: [{
+                            label: 'Units Sold',
+                            data: data.top_products.map(item => item.total_sold),
+                            backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } else {
+                // Show message if no top products data
+                document.getElementById('topProductsChart').parentElement.innerHTML = 
+                    '<div class="text-center py-4"><i class="fas fa-chart-bar fa-3x text-muted mb-3"></i><p class="text-muted">No sales data available yet.</p></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching chart data:', error);
+            loadingIndicator.style.display = 'none';
+            errorMessage.classList.remove('d-none');
+        });
+});
+</script>
+{% endblock %}
