@@ -19,7 +19,11 @@ def register(request):
         form = UserRegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            UserProfile.objects.create(user=user)
+
+            # Profil mavjud emasligini tekshir
+            if not UserProfile.objects.filter(user=user).exists():
+                UserProfile.objects.create(user=user)
+
             username = form.cleaned_data.get('username')
             messages.success(request, f'Account created for {username}!')
             login(request, user)
